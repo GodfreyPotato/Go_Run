@@ -251,7 +251,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                     'lastname': lastnameCtrl.text,
                                     'email': emailCtrl.text,
                                     'longestRun': 0,
-                                    'fastestRun': 0,
+                                    'inSeconds': 0,
                                   });
 
                               Navigator.of(context).pop();

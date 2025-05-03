@@ -27,6 +27,16 @@ class _HomeScreenState extends State<HomeScreen> {
         .get();
   }
 
+  Future<QuerySnapshot> lastRun() async {
+    return await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.uid)
+        .collection('runs')
+        .orderBy('dateTime', descending: true)
+        .limit(1)
+        .get();
+  }
+
   Future<QuerySnapshot> history() async {
     return await FirebaseFirestore.instance
         .collection('users')
@@ -244,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget HomeWidget() {
     return FutureBuilder(
-      future: userData(),
+      future: Future.wait([userData(), lastRun()]),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator(color: Colors.white));
@@ -255,8 +265,29 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text("No info.", style: TextStyle(color: Colors.white)),
           );
         }
+        //convert the snapshot to documentsnapshot muna and then
+        final DocumentSnapshot userSnapshot =
+            snapshot.data![0] as DocumentSnapshot;
+        //make it a map
+        user = userSnapshot.data() as Map;
 
-        user = snapshot.data!.data() as Map;
+        //convert the snapshot to documentsnapshot muna and then
+        final QuerySnapshot lastRunSnapshot =
+            snapshot.data![1] as QuerySnapshot;
+
+        // for the last run path
+        Map lastRun = {};
+        List firebasepath = [];
+        List<LatLng> extractedPath = [];
+
+        if (lastRunSnapshot.docs.isNotEmpty) {
+          lastRun = lastRunSnapshot.docs.first.data() as Map;
+          firebasepath = lastRun['path'];
+          extractedPath =
+              firebasepath.map((e) {
+                return LatLng(e['lat'], e['lng']);
+              }).toList();
+        }
 
         return Consumer<Timermodel>(
           builder:
@@ -322,9 +353,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               Text(
-                                user['fastestRun'] == 0
+                                user['inSeconds'] == 0
                                     ? "--:--"
-                                    : "${double.parse(user['fastestRun'].toString()).toStringAsFixed(2)} KM/H",
+                                    : calculatePace(
+                                      user['longestRun'],
+                                      user['inSeconds'],
+                                    ),
                                 style: TextStyle(
                                   color: Color(0xFF86B6FF),
                                   fontSize: 16,
@@ -350,8 +384,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               onConfirmBtnTap: () {
                                 value.stopStopwatch();
-                                addToFirestore(value.elapsedSeconds);
                                 Navigator.of(context).pop();
+                                addToFirestore(value.elapsedSeconds);
                               },
                               cancelBtnText: "No",
                               confirmBtnText: "Yes",
@@ -430,19 +464,60 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     SizedBox(height: 10),
-                    Container(
-                      margin: EdgeInsets.only(
-                        bottom: kBottomNavigationBarHeight,
-                      ),
-                      color: Colors.amber,
-                      width: 200,
-                      height: 200,
-                      child: GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: LatLng(0, 0),
+                    lastRun.isNotEmpty
+                        ? Container(
+                          margin: EdgeInsets.only(
+                            bottom: kBottomNavigationBarHeight,
+                          ),
+                          color: Colors.amber,
+                          width: 200,
+                          height: 200,
+                          child: GoogleMap(
+                            markers:
+                                extractedPath.isNotEmpty
+                                    ? {
+                                      Marker(
+                                        markerId: MarkerId("Start"),
+                                        position: extractedPath[0],
+                                      ),
+                                      Marker(
+                                        markerId: MarkerId("Start"),
+                                        position:
+                                            extractedPath[extractedPath.length -
+                                                1],
+                                      ),
+                                    }
+                                    : {},
+                            polylines: {
+                              Polyline(
+                                polylineId: PolylineId("lines"),
+                                points:
+                                    extractedPath.isNotEmpty
+                                        ? extractedPath
+                                        : [],
+                              ),
+                            },
+                            initialCameraPosition: CameraPosition(
+                              target:
+                                  extractedPath.isNotEmpty
+                                      ? extractedPath[0]
+                                      : LatLng(15.9724207, 120.5215634),
+                              zoom: 14,
+                            ),
+                          ),
+                        )
+                        : Center(
+                          child: Container(
+                            margin: EdgeInsets.only(top: 20),
+                            child: Text(
+                              "No data",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -452,35 +527,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget Leaderboards() {
-    return FutureBuilder(
-      future: userData(),
-      builder: (context, snapshot) {
+    return StreamBuilder(
+      stream: leaderboardData(),
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator(color: Colors.white));
         }
 
         if (!snapshot.hasData) {
           return Center(
-            child: Text("No info.", style: TextStyle(color: Colors.white)),
+            child: Text("No Data.", style: TextStyle(color: Colors.white)),
           );
         }
 
-        Map user = snapshot.data!.data() as Map;
+        List leaderboardList = snapshot.data!.docs;
 
-        return Container(
-          padding: EdgeInsets.only(left: 20, right: 20),
-          decoration: BoxDecoration(color: Color(0xFF4554D2)),
-          child: ListView(
-            children: [
-              Text("${user['runs']}"),
-              Text("Personal Record"),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(shape: CircleBorder()),
-                onPressed: () async {},
-                child: Text("Start Run"),
+        return Column(
+          children: [
+            Text(
+              "Leaderboards",
+              style: TextStyle(color: Colors.white, fontSize: 20),
+            ),
+            Container(color: Colors.amber, width: 200, height: 200),
+            Expanded(
+              child: ListView.builder(
+                itemCount: leaderboardList.length,
+                itemBuilder: (BuildContext context, int index) {
+                  Map record = leaderboardList[index].data() as Map;
+                  return Card(
+                    child: ListTile(
+                      leading: CircleAvatar(child: Text("${index + 1}")),
+                      title: Text(
+                        "test",
+                        style: TextStyle(color: Colors.black, fontSize: 20),
+                      ),
+                      trailing: Text("${record['totalKM']}"),
+                    ),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
@@ -492,8 +579,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
 
-      if (permission != LocationPermission.always ||
-          permission != LocationPermission.whileInUse) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.unableToDetermine) {
         return false;
       }
     }
@@ -504,9 +592,12 @@ class _HomeScreenState extends State<HomeScreen> {
     QuickAlert.show(
       context: context,
       type: QuickAlertType.loading,
+      text: "Please wait",
       barrierDismissible: false,
     );
+
     if (path.length < 2) {
+      print("here is path length${path.length}");
       QuickAlert.show(
         context: context,
         type: QuickAlertType.error,
@@ -514,6 +605,7 @@ class _HomeScreenState extends State<HomeScreen> {
         title: "Run too short",
         text: "Not enough data points to record your run.",
       );
+      Provider.of<Timermodel>(context, listen: false).reset();
       return;
     }
 
@@ -535,6 +627,7 @@ class _HomeScreenState extends State<HomeScreen> {
     totalKm = totalKm / 1000;
 
     try {
+      //insert
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.uid)
@@ -547,11 +640,12 @@ class _HomeScreenState extends State<HomeScreen> {
             'dateTime': Timestamp.now(),
           });
 
+      //update the best kung mas malayo natakbo
       if (user['longestRun'] < totalKm) {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(widget.uid)
-            .update({'longestRun': totalKm});
+            .update({'longestRun': totalKm, 'inSeconds': seconds});
       }
       Navigator.of(context).pop();
       QuickAlert.show(
@@ -561,7 +655,6 @@ class _HomeScreenState extends State<HomeScreen> {
         text: "Data is recorded!",
         barrierDismissible: false,
       );
-      setState(() {});
     } on FirebaseException catch (e) {
       QuickAlert.show(
         barrierDismissible: false,
@@ -572,5 +665,21 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     Provider.of<Timermodel>(context, listen: false).reset();
+  }
+
+  String calculatePace(double totalKm, int totalSeconds) {
+    if (totalKm.toInt() <= 0) return "0:00 / km";
+    double paceSecondsPerKm = totalSeconds / totalKm;
+    int paceMinutes = paceSecondsPerKm ~/ 60;
+    int paceSeconds = (paceSecondsPerKm % 60).round();
+    return '${paceMinutes.toString().padLeft(1, '0')}:${paceSeconds.toString().padLeft(2, '0')} / km';
+  }
+
+  Stream<QuerySnapshot> leaderboardData() {
+    return FirebaseFirestore.instance
+        .collection('leaderboards')
+        .orderBy('totalKM', descending: true)
+        .limit(10)
+        .snapshots();
   }
 }

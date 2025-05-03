@@ -29,7 +29,7 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   String calculatePace(double totalKm, int totalSeconds) {
-    if (totalKm == 0) return "0:00";
+    if (totalKm.toInt() <= 0) return "0:00";
     double paceSecondsPerKm = totalSeconds / totalKm;
     int paceMinutes = paceSecondsPerKm ~/ 60;
     int paceSeconds = (paceSecondsPerKm % 60).round();
@@ -57,7 +57,8 @@ class _DetailScreenState extends State<DetailScreen> {
                 : run['title'];
 
         List firebasePath = run['path'];
-        path = [];
+        path =
+            []; //nag lilinis ng route para hindi ma doble, idk if this thing work
         firebasePath.forEach((e) {
           path.add(LatLng(e['lat'], e['lng']));
         });

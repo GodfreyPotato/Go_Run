@@ -170,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 type: QuickAlertType.error,
                                 barrierDismissible: false,
                                 title: "Something went wrong!",
-                                text: "Email or password isn't right bro",
+                                text: "${e.message}",
                               );
                             }
                           },
