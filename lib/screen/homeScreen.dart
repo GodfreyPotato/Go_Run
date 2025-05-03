@@ -32,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .collection('users')
         .doc(widget.uid)
         .collection('runs')
+        .orderBy('dateTime')
         .get();
   }
 
@@ -45,11 +46,22 @@ class _HomeScreenState extends State<HomeScreen> {
   //map records
   List<LatLng> path = [];
 
+  StreamSubscription<Position>? getPositionStream;
+
+  var nameCtrl = TextEditingController();
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     pages = [HomeWidget(), Leaderboards()];
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    getPositionStream?.cancel();
+    super.dispose();
   }
 
   @override
@@ -77,7 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
             future: history(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
+                return Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
               }
               if (snapshot.data == null) {
                 return Center(
@@ -98,6 +112,92 @@ class _HomeScreenState extends State<HomeScreen> {
                         QueryDocumentSnapshot run = history[index];
                         return Card(
                           child: ListTile(
+                            trailing: IconButton(
+                              onPressed: () {
+                                nameCtrl.text =
+                                    run['title'] == null ||
+                                            run['title'].toString().isEmpty
+                                        ? "${DateFormat('MMMM d, y h:mm a').format(run['dateTime'].toDate())}"
+                                        : run['title'];
+                                showDialog(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        backgroundColor: Color(0xFF86B6FF),
+                                        title: Text("Change Run Name"),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextField(
+                                              controller: nameCtrl,
+                                              decoration: InputDecoration(
+                                                labelText: "Name",
+                                                border: OutlineInputBorder(),
+                                              ),
+                                            ),
+                                            SizedBox(height: 30),
+                                            ElevatedButton(
+                                              onPressed: () async {
+                                                try {
+                                                  QuickAlert.show(
+                                                    context: context,
+                                                    type:
+                                                        QuickAlertType.loading,
+                                                    barrierDismissible: false,
+                                                  );
+
+                                                  await FirebaseFirestore
+                                                      .instance
+                                                      .collection('users')
+                                                      .doc(widget.uid)
+                                                      .collection('runs')
+                                                      .doc(run.id)
+                                                      .update({
+                                                        'title': nameCtrl.text,
+                                                      });
+
+                                                  Navigator.of(context).pop();
+                                                  QuickAlert.show(
+                                                    context: context,
+                                                    type:
+                                                        QuickAlertType.success,
+                                                    title:
+                                                        "Updated successfully!",
+                                                    onConfirmBtnTap: () {
+                                                      Navigator.of(
+                                                        context,
+                                                      ).pop();
+                                                      Navigator.of(
+                                                        context,
+                                                      ).pop();
+                                                      setState(() {});
+                                                    },
+                                                  );
+                                                } on FirebaseException catch (
+                                                  e
+                                                ) {
+                                                  QuickAlert.show(
+                                                    context: context,
+                                                    type: QuickAlertType.error,
+                                                    title:
+                                                        "Something went wrong!",
+                                                  );
+                                                }
+                                              },
+                                              child: Text(
+                                                "Change name",
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                );
+                              },
+                              icon: Icon(Icons.edit),
+                            ),
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
@@ -125,7 +225,8 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        extendBodyBehindAppBar: true,
+
+        // extendBodyBehindAppBar: true,
         appBar: AppBar(
           foregroundColor: Colors.white,
           actions: [
@@ -146,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
       future: userData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return Center(child: CircularProgressIndicator(color: Colors.white));
         }
 
         if (!snapshot.hasData) {
@@ -173,7 +274,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 30),
+                    Divider(),
+                    SizedBox(height: 10),
                     Text(
                       "Personal Record",
                       style: TextStyle(
@@ -182,6 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    SizedBox(height: 20),
                     Row(
                       children: [
                         Expanded(
@@ -211,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             children: [
                               Text(
-                                "Fastest Pace",
+                                "Pace",
                                 style: TextStyle(
                                   color: Color(0xFF86B6FF),
                                   fontSize: 16,
@@ -232,12 +335,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 70),
+                    SizedBox(height: 50),
                     value.isJogStarted
                         ? GestureDetector(
                           onTap: () {
                             QuickAlert.show(
                               context: context,
+                              barrierDismissible: false,
                               type: QuickAlertType.warning,
                               title: "Stop recording",
                               text: "Are you sure you want to stop?",
@@ -286,9 +390,25 @@ class _HomeScreenState extends State<HomeScreen> {
                               if (isPermissionEnabled) {
                                 value.startStopwatch();
 
-                                Geolocator.getPositionStream().listen((pos) {
-                                  path.add(LatLng(pos.latitude, pos.longitude));
-                                });
+                                getPositionStream =
+                                    Geolocator.getPositionStream(
+                                      locationSettings: LocationSettings(
+                                        accuracy: LocationAccuracy.best,
+                                        distanceFilter: 0,
+                                      ),
+                                    ).listen((pos) {
+                                      path.add(
+                                        LatLng(pos.latitude, pos.longitude),
+                                      );
+                                    });
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "Enable the permission in the settings.",
+                                    ),
+                                  ),
+                                );
                               }
                             } else {
                               value.stopStopwatch();
@@ -299,6 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: TextStyle(fontSize: 30, color: Colors.blue),
                           ),
                         ),
+
                     SizedBox(height: 20),
                     Text(
                       "Last Run",
@@ -310,6 +431,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     SizedBox(height: 10),
                     Container(
+                      margin: EdgeInsets.only(
+                        bottom: kBottomNavigationBarHeight,
+                      ),
                       color: Colors.amber,
                       width: 200,
                       height: 200,
@@ -370,9 +494,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (permission != LocationPermission.always ||
           permission != LocationPermission.whileInUse) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Enable the permission in the settings.")),
-        );
         return false;
       }
     }
@@ -380,18 +501,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void addToFirestore(int seconds) async {
-    showDialog(
+    QuickAlert.show(
       context: context,
+      type: QuickAlertType.loading,
       barrierDismissible: false,
-      builder: (context) {
-        QuickAlert.show(context: context, type: QuickAlertType.loading);
-        return Container();
-      },
     );
     if (path.length < 2) {
       QuickAlert.show(
         context: context,
         type: QuickAlertType.error,
+        barrierDismissible: false,
         title: "Run too short",
         text: "Not enough data points to record your run.",
       );
@@ -413,7 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return {'lat': e.latitude, 'lng': e.longitude};
         }).toList();
 
-    totalKm /= 1000;
+    totalKm = totalKm / 1000;
 
     try {
       await FirebaseFirestore.instance
@@ -440,10 +559,12 @@ class _HomeScreenState extends State<HomeScreen> {
         type: QuickAlertType.success,
         title: "Success",
         text: "Data is recorded!",
+        barrierDismissible: false,
       );
       setState(() {});
     } on FirebaseException catch (e) {
       QuickAlert.show(
+        barrierDismissible: false,
         context: context,
         type: QuickAlertType.error,
         title: "Something went wrong",

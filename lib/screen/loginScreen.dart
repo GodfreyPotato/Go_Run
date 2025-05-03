@@ -144,6 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             QuickAlert.show(
                               context: context,
                               type: QuickAlertType.loading,
+                              barrierDismissible: false,
                             );
                             try {
                               UserCredential usercreds = await FirebaseAuth
@@ -167,6 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               QuickAlert.show(
                                 context: context,
                                 type: QuickAlertType.error,
+                                barrierDismissible: false,
                                 title: "Something went wrong!",
                                 text: "Email or password isn't right bro",
                               );

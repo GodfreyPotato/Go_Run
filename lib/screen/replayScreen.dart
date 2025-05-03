@@ -11,7 +11,7 @@ class ReplayScreen extends StatefulWidget {
 
 class _ReplayScreenState extends State<ReplayScreen> {
   GoogleMapController? mapController;
-
+  bool done = false;
   @override
   void initState() {
     // TODO: implement initState
@@ -24,32 +24,44 @@ class _ReplayScreenState extends State<ReplayScreen> {
       await mapController?.animateCamera(
         duration: Duration(milliseconds: 300),
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: e, zoom: 20, tilt: 30),
+          CameraPosition(target: e, zoom: 20, tilt: 70),
         ),
       );
-      print("data here $e");
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(Duration(milliseconds: 180));
     }
+    done = true;
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0xFF4554D2),
-        foregroundColor: Colors.white,
-        title: Text(
-          widget.title,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Image.asset('assets/images/GoRunLogo.png', width: 100),
-          ),
-        ],
-      ),
+      appBar:
+          done
+              ? AppBar(
+                backgroundColor: Color(0xFF4554D2),
+                foregroundColor: Colors.white,
+                title: Text(
+                  widget.title,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      'assets/images/GoRunLogo.png',
+                      width: 100,
+                    ),
+                  ),
+                ],
+              )
+              : null,
       body: GoogleMap(
+        zoomGesturesEnabled: false,
+        scrollGesturesEnabled: false,
+        rotateGesturesEnabled: false,
+        tiltGesturesEnabled: false,
+        zoomControlsEnabled: false,
         mapType: MapType.hybrid,
         markers: {
           Marker(
@@ -68,6 +80,8 @@ class _ReplayScreenState extends State<ReplayScreen> {
         },
         initialCameraPosition: CameraPosition(
           target: LatLng(widget.path[0].latitude, widget.path[0].longitude),
+          zoom: 17,
+          tilt: 70,
         ),
         polylines: {
           Polyline(

@@ -57,7 +57,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 : run['title'];
 
         List firebasePath = run['path'];
-
+        path = [];
         firebasePath.forEach((e) {
           path.add(LatLng(e['lat'], e['lng']));
         });
@@ -83,6 +83,7 @@ class _DetailScreenState extends State<DetailScreen> {
               children: [
                 SizedBox(height: 12),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     Column(
                       children: [
@@ -104,23 +105,24 @@ class _DetailScreenState extends State<DetailScreen> {
                         ),
                       ],
                     ),
-                    Expanded(
-                      child: Center(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder:
-                                    (context) =>
-                                        ReplayScreen(path: path, title: title),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            "Replay Path",
-                            style: TextStyle(color: Colors.black),
+                    ElevatedButton.icon(
+                      icon: Icon(Icons.replay, size: 25, color: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFFE8B601),
+                        minimumSize: Size(120, 40),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                    ReplayScreen(path: path, title: title),
                           ),
-                        ),
+                        );
+                      },
+                      label: Text(
+                        "Replay Path",
+                        style: TextStyle(color: Colors.white),
                       ),
                     ),
                   ],
@@ -173,9 +175,14 @@ class _DetailScreenState extends State<DetailScreen> {
                   height: 400,
                   width: 400,
                   child: GoogleMap(
+                    zoomGesturesEnabled: false,
+                    scrollGesturesEnabled: false,
+                    rotateGesturesEnabled: false,
+                    tiltGesturesEnabled: false,
+                    zoomControlsEnabled: false,
                     initialCameraPosition: CameraPosition(
                       target: LatLng(path[0].latitude, path[0].longitude),
-                      zoom: 7,
+                      zoom: 15,
                     ),
                     markers: {
                       Marker(

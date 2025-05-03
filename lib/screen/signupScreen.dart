@@ -232,6 +232,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             QuickAlert.show(
                               context: context,
                               type: QuickAlertType.loading,
+                              barrierDismissible: false,
                             );
                             try {
                               UserCredential usercreds = await FirebaseAuth
@@ -257,6 +258,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               await QuickAlert.show(
                                 context: context,
                                 type: QuickAlertType.success,
+                                barrierDismissible: false,
                                 title: "Account Created!",
                                 text: "You can now login your account!",
                               );
@@ -270,6 +272,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               QuickAlert.show(
                                 context: context,
                                 type: QuickAlertType.error,
+                                barrierDismissible: false,
                                 title: "Something went wrong!",
                                 text: "${e.message}",
                               );
