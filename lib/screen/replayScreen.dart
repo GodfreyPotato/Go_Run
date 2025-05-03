@@ -27,7 +27,7 @@ class _ReplayScreenState extends State<ReplayScreen> {
           CameraPosition(target: e, zoom: 20, tilt: 70),
         ),
       );
-      await Future.delayed(Duration(milliseconds: 800));
+      await Future.delayed(Duration(milliseconds: 200));
     }
     done = true;
     setState(() {});

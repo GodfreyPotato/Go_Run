@@ -11,6 +11,7 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
+import 'package:rxdart/rxdart.dart';
 
 class HomeScreen extends StatefulWidget {
   HomeScreen({super.key, required this.uid});
@@ -20,30 +21,30 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Future<DocumentSnapshot> userData() async {
-    return await FirebaseFirestore.instance
+  Stream<DocumentSnapshot> userData() {
+    return FirebaseFirestore.instance
         .collection('users')
         .doc(widget.uid)
-        .get();
+        .snapshots();
   }
 
-  Future<QuerySnapshot> lastRun() async {
-    return await FirebaseFirestore.instance
+  Stream<QuerySnapshot> lastRun() {
+    return FirebaseFirestore.instance
         .collection('users')
         .doc(widget.uid)
         .collection('runs')
         .orderBy('dateTime', descending: true)
         .limit(1)
-        .get();
+        .snapshots();
   }
 
-  Future<QuerySnapshot> history() async {
-    return await FirebaseFirestore.instance
+  Stream<QuerySnapshot> history() {
+    return FirebaseFirestore.instance
         .collection('users')
         .doc(widget.uid)
         .collection('runs')
         .orderBy('dateTime')
-        .get();
+        .snapshots();
   }
 
   bool isPermissionEnabled = true;
@@ -59,6 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<Position>? getPositionStream;
 
   var nameCtrl = TextEditingController();
+
+  GoogleMapController? mapCtrl;
 
   @override
   void initState() {
@@ -95,8 +98,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         drawer: Drawer(
-          child: FutureBuilder(
-            future: history(),
+          child: StreamBuilder(
+            stream: history(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(
@@ -253,8 +256,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget HomeWidget() {
-    return FutureBuilder(
-      future: Future.wait([userData(), lastRun()]),
+    return StreamBuilder(
+      stream: Rx.combineLatest2(
+        userData(),
+        lastRun(),
+        (userFromStrem, runFromStream) => [userFromStrem, runFromStream],
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator(color: Colors.white));
@@ -288,7 +295,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 return LatLng(e['lat'], e['lng']);
               }).toList();
         }
-
         return Consumer<Timermodel>(
           builder:
               (context, value, child) => Container(
@@ -396,7 +402,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: CircularPercentIndicator(
                               radius: 120.0,
                               lineWidth: 12.0,
-
+                              arcBackgroundColor: Colors.red[400],
+                              arcType: ArcType.FULL,
                               percent: value.percent,
                               center: Text(
                                 "${value.minutes.toString().padLeft(2, '0')}:${value.seconds.toString().padLeft(2, '0')}",
@@ -473,18 +480,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: 200,
                           height: 200,
                           child: GoogleMap(
+                            onMapCreated: (controller) {
+                              mapCtrl = controller;
+                            },
                             markers:
                                 extractedPath.isNotEmpty
                                     ? {
                                       Marker(
                                         markerId: MarkerId("Start"),
                                         position: extractedPath[0],
+                                        infoWindow: InfoWindow(title: "Start"),
                                       ),
                                       Marker(
-                                        markerId: MarkerId("Start"),
+                                        markerId: MarkerId("End"),
                                         position:
                                             extractedPath[extractedPath.length -
                                                 1],
+                                        infoWindow: InfoWindow(title: "End"),
                                       ),
                                     }
                                     : {},
@@ -557,11 +569,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(child: Text("${index + 1}")),
+                      subtitle: Text(
+                        calculatePace(record['totalKM'], record['inSeconds']),
+                      ),
                       title: Text(
-                        "test",
+                        "${record['username']}",
                         style: TextStyle(color: Colors.black, fontSize: 20),
                       ),
-                      trailing: Text("${record['totalKM']}"),
+                      trailing: Text(
+                        "${double.parse(record['totalKM'].toString()).toStringAsFixed(2)} KM",
+                        style: TextStyle(fontSize: 20),
+                      ),
                     ),
                   );
                 },
@@ -646,6 +664,15 @@ class _HomeScreenState extends State<HomeScreen> {
             .collection('users')
             .doc(widget.uid)
             .update({'longestRun': totalKm, 'inSeconds': seconds});
+
+        await FirebaseFirestore.instance
+            .collection('leaderboards')
+            .doc(widget.uid)
+            .set({
+              'totalKM': totalKm,
+              'username': user['username'],
+              'inSeconds': seconds,
+            });
       }
       Navigator.of(context).pop();
       QuickAlert.show(
@@ -664,6 +691,10 @@ class _HomeScreenState extends State<HomeScreen> {
         text: "${e.message}",
       );
     }
+    mapCtrl?.animateCamera(
+      CameraUpdate.newCameraPosition(CameraPosition(target: path[0], zoom: 14)),
+    );
+    path.clear();
     Provider.of<Timermodel>(context, listen: false).reset();
   }
 
