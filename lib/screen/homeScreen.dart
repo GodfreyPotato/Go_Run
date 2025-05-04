@@ -50,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isPermissionEnabled = true;
 
   late List<Widget> pages;
-  int _selectedIndex = 0;
+  int selectedIndex = 0;
 
   Map user = {};
 
@@ -63,10 +63,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   GoogleMapController? mapCtrl;
 
+  late Stream<List<Object>> combinedStream;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+    combinedStream = Rx.combineLatest2(
+      userData(),
+      lastRun(),
+      (userFromStrem, runFromStream) => [userFromStrem, runFromStream],
+    );
     pages = [HomeWidget(), Leaderboards()];
   }
 
@@ -83,11 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Color(0xFF4554D2),
         bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
+          currentIndex: selectedIndex,
           onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
+            selectedIndex = index;
+            setState(() {});
+            print("HELO $index");
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -250,18 +257,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           backgroundColor: Colors.transparent,
         ),
-        body: pages[_selectedIndex],
+        body: IndexedStack(children: pages, index: selectedIndex),
       ),
     );
   }
 
   Widget HomeWidget() {
     return StreamBuilder(
-      stream: Rx.combineLatest2(
-        userData(),
-        lastRun(),
-        (userFromStrem, runFromStream) => [userFromStrem, runFromStream],
-      ),
+      stream: combinedStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator(color: Colors.white));
@@ -502,6 +505,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     : {},
                             polylines: {
                               Polyline(
+                                color: Colors.blue,
                                 polylineId: PolylineId("lines"),
                                 points:
                                     extractedPath.isNotEmpty
@@ -560,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen> {
               "Leaderboards",
               style: TextStyle(color: Colors.white, fontSize: 20),
             ),
-            Container(color: Colors.amber, width: 200, height: 200),
+            Container(color: Colors.amber, width: double.infinity, height: 200),
             Expanded(
               child: ListView.builder(
                 itemCount: leaderboardList.length,
@@ -578,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       trailing: Text(
                         "${double.parse(record['totalKM'].toString()).toStringAsFixed(2)} KM",
-                        style: TextStyle(fontSize: 20),
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   );
