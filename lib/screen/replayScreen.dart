@@ -58,7 +58,7 @@ class _ReplayScreenState extends State<ReplayScreen> {
               : null,
       body: GoogleMap(
         zoomGesturesEnabled: false,
-        scrollGesturesEnabled: false,
+        scrollGesturesEnabled: done,
         rotateGesturesEnabled: false,
         tiltGesturesEnabled: false,
         zoomControlsEnabled: false,
@@ -86,7 +86,7 @@ class _ReplayScreenState extends State<ReplayScreen> {
         polylines: {
           Polyline(
             polylineId: PolylineId("Poly"),
-            points: widget.path,
+            points: widget.path, //widget.path
             color: Colors.blue,
           ),
         },

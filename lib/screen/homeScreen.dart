@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_run/model/timerModel.dart';
 import 'package:go_run/screen/detailScreen.dart';
+import 'package:go_run/screen/loginScreen.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
@@ -43,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .collection('users')
         .doc(widget.uid)
         .collection('runs')
-        .orderBy('dateTime')
+        .orderBy('dateTime', descending: true)
         .snapshots();
   }
 
@@ -90,6 +92,9 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Color(0xFF4554D2),
         bottomNavigationBar: BottomNavigationBar(
+          selectedItemColor: Colors.white, // Label color for selected item
+          unselectedItemColor: Colors.white70,
+          backgroundColor: Color(0xFF4554D2),
           currentIndex: selectedIndex,
           onTap: (index) {
             selectedIndex = index;
@@ -124,7 +129,18 @@ class _HomeScreenState extends State<HomeScreen> {
               List history = snapshot.data!.docs;
               return Column(
                 children: [
-                  DrawerHeader(child: Center(child: Text("Recent Records"))),
+                  DrawerHeader(
+                    child: Center(
+                      child: Text(
+                        "Recent Records",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 20,
+                          color: Color(0xFF4554D2),
+                        ),
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: ListView.builder(
                       itemCount: history.length,
@@ -143,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   context: context,
                                   builder:
                                       (context) => AlertDialog(
-                                        backgroundColor: Color(0xFF86B6FF),
+                                        backgroundColor: Colors.white,
                                         title: Text("Change Run Name"),
                                         content: Column(
                                           mainAxisSize: MainAxisSize.min,
@@ -234,10 +250,32 @@ class _HomeScreenState extends State<HomeScreen> {
                                       run['title'].toString().isEmpty
                                   ? "${DateFormat('MMMM d, y h:mm a').format(run['dateTime'].toDate())}"
                                   : run['title'],
+                              style: TextStyle(color: Color(0xFF4554D2)),
                             ),
                           ),
                         );
                       },
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.all(10),
+
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: Colors.red,
+                      ),
+                      label: Text("Logout"),
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => LoginScreen(),
+                          ),
+                          (Route<dynamic> route) => false,
+                        );
+                      },
+                      icon: Icon(Icons.logout),
                     ),
                   ),
                 ],
@@ -276,14 +314,12 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         //convert the snapshot to documentsnapshot muna and then
-        final DocumentSnapshot userSnapshot =
-            snapshot.data![0] as DocumentSnapshot;
+        DocumentSnapshot userSnapshot = snapshot.data![0] as DocumentSnapshot;
         //make it a map
         user = userSnapshot.data() as Map;
 
         //convert the snapshot to documentsnapshot muna and then
-        final QuerySnapshot lastRunSnapshot =
-            snapshot.data![1] as QuerySnapshot;
+        QuerySnapshot lastRunSnapshot = snapshot.data![1] as QuerySnapshot;
 
         // for the last run path
         Map lastRun = {};
@@ -572,10 +608,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   Map record = leaderboardList[index].data() as Map;
                   return Card(
                     child: ListTile(
-                      leading: CircleAvatar(child: Text("${index + 1}")),
-                      subtitle: Text(
-                        calculatePace(record['totalKM'], record['inSeconds']),
+                      leading: CircleAvatar(
+                        backgroundColor: Color.fromARGB(255, 92, 104, 211),
+                        child: Text(
+                          "${index + 1}",
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
+
                       title: Text(
                         "${record['username']}",
                         style: TextStyle(color: Colors.black, fontSize: 20),
@@ -703,11 +743,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String calculatePace(double totalKm, int totalSeconds) {
-    if (totalKm.toInt() <= 0) return "0:00 / km";
+    if (totalKm <= 0 || totalSeconds <= 0) return "0:00 / km";
+
     double paceSecondsPerKm = totalSeconds / totalKm;
     int paceMinutes = paceSecondsPerKm ~/ 60;
     int paceSeconds = (paceSecondsPerKm % 60).round();
-    return '${paceMinutes.toString().padLeft(1, '0')}:${paceSeconds.toString().padLeft(2, '0')} / km';
+
+    return '${paceMinutes.toString()}:${paceSeconds.toString().padLeft(2, '0')} / km';
   }
 
   Stream<QuerySnapshot> leaderboardData() {

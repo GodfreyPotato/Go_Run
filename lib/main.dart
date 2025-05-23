@@ -24,7 +24,7 @@ class GoRunApp extends StatelessWidget {
       create: (context) => Timermodel(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: LoginScreen(),
+        home: SplashScreen(),
       ),
     );
   }
