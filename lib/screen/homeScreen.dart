@@ -593,40 +593,126 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         List leaderboardList = snapshot.data!.docs;
+        print(leaderboardList.toString() + leaderboardList.length.toString());
+        String top1 =
+            leaderboardList.length >= 1
+                ? (leaderboardList[0].data() as Map)['username']
+                : "None";
+        String top2 =
+            leaderboardList.length >= 2
+                ? (leaderboardList[1].data() as Map)['username']
+                : "None";
+
+        String top3 =
+            leaderboardList.length >= 3
+                ? (leaderboardList[2].data() as Map)['username']
+                : "None";
 
         return Column(
           children: [
-            Text(
-              "Leaderboards",
-              style: TextStyle(color: Colors.white, fontSize: 20),
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.only(bottom: 20),
+              height: 200,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          top2,
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.white, Color(0xFF4554D2)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                          height: 80,
+                          width: MediaQuery.of(context).size.width / 3 - 50,
+                        ),
+                      ],
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          top1,
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.white, Color(0xFF4554D2)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                          height: 120,
+                          width: MediaQuery.of(context).size.width / 3 - 50,
+                        ),
+                      ],
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          top3,
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.white, Color(0xFF4554D2)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                          height: 60,
+                          width: MediaQuery.of(context).size.width / 3 - 50,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-            Container(color: Colors.amber, width: double.infinity, height: 200),
             Expanded(
-              child: ListView.builder(
-                itemCount: leaderboardList.length,
-                itemBuilder: (BuildContext context, int index) {
-                  Map record = leaderboardList[index].data() as Map;
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Color.fromARGB(255, 92, 104, 211),
-                        child: Text(
-                          "${index + 1}",
-                          style: TextStyle(color: Colors.white),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: ListView.builder(
+                  itemCount: leaderboardList.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    Map record = leaderboardList[index].data() as Map;
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Color.fromARGB(255, 92, 104, 211),
+                          child: Text(
+                            "${index + 1}",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                
+                        title: Text(
+                          "${record['username']}",
+                          style: TextStyle(color: Colors.black, fontSize: 20),
+                        ),
+                        trailing: Text(
+                          "${double.parse(record['totalKM'].toString()).toStringAsFixed(2)} KM",
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
-
-                      title: Text(
-                        "${record['username']}",
-                        style: TextStyle(color: Colors.black, fontSize: 20),
-                      ),
-                      trailing: Text(
-                        "${double.parse(record['totalKM'].toString()).toStringAsFixed(2)} KM",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ],

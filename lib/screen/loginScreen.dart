@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Row(
                           children: [
                             Text(
-                              "Doesn't have an account?",
+                              "Need an account?",
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.white,
