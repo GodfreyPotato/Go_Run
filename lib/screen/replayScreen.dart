@@ -5,29 +5,28 @@ class ReplayScreen extends StatefulWidget {
   ReplayScreen({super.key, required this.path, required this.title});
   List<LatLng> path;
   String title;
+
   @override
   State<ReplayScreen> createState() => _ReplayScreenState();
 }
 
 class _ReplayScreenState extends State<ReplayScreen> {
+  List<LatLng> animatedPath = [];
   GoogleMapController? mapController;
   bool done = false;
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    viewRoute();
-  }
 
   void viewRoute() async {
     for (LatLng e in widget.path) {
       await mapController?.animateCamera(
-        duration: Duration(milliseconds: 300),
+        duration: Duration(milliseconds: 200),
         CameraUpdate.newCameraPosition(
           CameraPosition(target: e, zoom: 20, tilt: 70),
         ),
       );
-      await Future.delayed(Duration(milliseconds: 200));
+      setState(() {
+        animatedPath.add(e);
+      });
+      await Future.delayed(Duration(milliseconds: 150));
     }
     done = true;
     setState(() {});
@@ -62,7 +61,7 @@ class _ReplayScreenState extends State<ReplayScreen> {
         rotateGesturesEnabled: false,
         tiltGesturesEnabled: false,
         zoomControlsEnabled: false,
-        mapType: MapType.hybrid,
+        mapType: MapType.satellite,
         markers: {
           Marker(
             markerId: MarkerId("start"),
@@ -77,6 +76,7 @@ class _ReplayScreenState extends State<ReplayScreen> {
         },
         onMapCreated: (controller) {
           mapController = controller;
+          viewRoute();
         },
         initialCameraPosition: CameraPosition(
           target: LatLng(widget.path[0].latitude, widget.path[0].longitude),
@@ -86,7 +86,7 @@ class _ReplayScreenState extends State<ReplayScreen> {
         polylines: {
           Polyline(
             polylineId: PolylineId("Poly"),
-            points: widget.path, //widget.path
+            points: animatedPath, //widget.path
             color: Colors.blue,
           ),
         },
